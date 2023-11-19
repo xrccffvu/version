@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract AdvancedSmartContract is ERC20, Ownable {
+    uint256 private data;
+
+    event DataUpdated(uint256 newData);
+
+    constructor(
+        uint256 initialData,
+        string memory tokenName,
+        string memory tokenSymbol
+    ) ERC20(tokenName, tokenSymbol) {
+        data = initialData;
+    }
+
+    function updateData(uint256 newData) external onlyOwner {
+        require(newData != data, "New data must be different from current data");
+        data = newData;
+        emit DataUpdated(newData);
+    }
+
+    function getData() external view returns (uint256) {
+        return data;
+    }
+
+    function mint(uint256 amount) external onlyOwner {
+        _mint(owner(), amount);
+    }
+
+    function transfer(address to, uint256 amount) external onlyOwner {
+        _transfer(owner(), to, amount);
+    }
+
+    function getContractBalance() external view onlyOwner returns (uint256) {
+        return address(this).balance;
+    }
+
+    // Function to withdraw Ether from the contract, only callable by the owner
+    function withdraw(uint256 amount) external onlyOwner {
+        require(amount <= address(this).balance, "Insufficient contract balance");
+        payable(owner()).transfer(amount);
+    }
+
+    // Fallback function to receive Ether
+    receive() external payable {}
+
+    // Function to transfer ERC20 tokens, only callable by the owner
+    function transferTokens(address tokenAddress, address to, uint256 amount) external onlyOwner {
+        IERC20(tokenAddress).transfer(to, amount);
+    }
+}
