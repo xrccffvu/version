@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract EnhancedCrowdfundingETH {
+    address public owner;
+    string public projectDescription;
+    uint256 public fundingGoal;
+    uint256 public deadline;
+    bool public isFundingClosed;
+    mapping(address => uint256) public contributions;
+    address[] public contributors;
+
+    event FundingReceived(address indexed contributor, uint256 amount);
+    event FundingGoalReached(uint256 totalAmount);
+    event FundingClosed();
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can call this function");
+        _;
+    }
+
+    modifier notClosed() {
+        require(!isFundingClosed, "Funding is closed");
+        _;
+    }
+
+    modifier deadlineReached() {
+        require(block.timestamp >= deadline, "Deadline not reached yet");
+        _;
+    }
+
+    constructor(
+        string memory description,
+        uint256 goal,
+        uint256 durationDays
+    ) {
+        owner = msg.sender;
+        projectDescription = description;
+        fundingGoal = goal;
+        deadline = block.timestamp + durationDays * 1 days;
+        isFundingClosed = false;
+    }
+
+    function contribute() external payable notClosed {
+        require(msg.value > 0, "Contribution amount must be greater than 0");
+
+        if (contributions[msg.sender] == 0) {
+            contributors.push(msg.sender);
+        }
+
+        contributions[msg.sender] += msg.value;
+
+        emit FundingReceived(msg.sender, msg.value);
+
+        if (totalContributions() >= fundingGoal) {
+            emit FundingGoalReached(totalContributions());
+            closeFunding();
+        }
+    }
+
+    function totalContributions() public view returns (uint256) {
+        uint256 total = 0;
+        for (uint256 i = 0; i < contributors.length; i++) {
+            total += contributions[contributors[i]];
+        }
+        return total;
+    }
+
+    function closeFunding() internal deadlineReached {
+        isFundingClosed = true;
+        emit FundingClosed();
+    }
+
+    function withdrawFunds() external onlyOwner deadlineReached {
+        require(totalContributions() >= fundingGoal, "Funding goal not reached");
+        payable(owner).transfer(totalContributions());
+    }
+}
