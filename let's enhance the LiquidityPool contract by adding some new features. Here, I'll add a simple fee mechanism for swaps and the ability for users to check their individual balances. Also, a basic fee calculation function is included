@@ -1,0 +1,60 @@
+import starknet;
+
+contract LiquidityPool {
+    starknet.StorageSlot!({user: felt, tokenA_balance: felt, tokenB_balance: felt});
+    starknet.StorageSlot!({user: felt, feesAccrued: felt});
+
+    const FEE_PERCENTAGE = 1; // 1% fee
+
+    public (user: felt) func initialize() {
+        // Initialize the contract
+        self.storage.user = tx.origin;
+        self.storage.tokenA_balance = 0;
+        self.storage.tokenB_balance = 0;
+        self.storage.feesAccrued = 0;
+    }
+
+    public (tokenA_amount: felt, tokenB_amount: felt) func addLiquidity(tokenA_amount: felt, tokenB_amount: felt) {
+        // Add liquidity
+        self.storage.tokenA_balance += tokenA_amount;
+        self.storage.tokenB_balance += tokenB_amount;
+    }
+
+    public (tokenA_amount: felt, tokenB_amount: felt) func removeLiquidity() {
+        // Remove liquidity
+        assert(self.storage.user == tx.origin, "Not the liquidity provider");
+        let tokenA_amount = self.storage.tokenA_balance;
+        let tokenB_amount = self.storage.tokenB_balance;
+        self.storage.tokenA_balance = 0;
+        self.storage.tokenB_balance = 0;
+    }
+
+    public (tokenA_balance: felt, tokenB_balance: felt) view func getLiquidity() -> (felt, felt) {
+        // Get current liquidity
+        return (self.storage.tokenA_balance, self.storage.tokenB_balance);
+    }
+
+    public (tokenB_received: felt) func swapTokenAForTokenB(tokenA_amount: felt) {
+        // Swap token A for token B with a fee
+        assert(self.storage.tokenA_balance >= tokenA_amount, "Insufficient liquidity");
+        let tokenB_amount = calculateSwapAmount(tokenA_amount);
+        self.storage.tokenA_balance -= tokenA_amount;
+        self.storage.tokenB_balance += tokenB_amount;
+
+        // Collect fees
+        let fee = tokenA_amount * FEE_PERCENTAGE / 100;
+        self.storage.feesAccrued += fee;
+    }
+
+    public (tokenA_balance: felt, tokenB_balance: felt, feesAccrued: felt) view func getUserBalance() -> (felt, felt, felt) {
+        // Get individual user balances and accrued fees
+        assert(self.storage.user == tx.origin, "Not the account owner");
+        return (self.storage.tokenA_balance, self.storage.tokenB_balance, self.storage.feesAccrued);
+    }
+
+    private (tokenB_amount: felt) func calculateSwapAmount(tokenA_amount: felt) -> felt {
+        // Calculate the amount of token B to be received with a fee
+        let fee = tokenA_amount * FEE_PERCENTAGE / 100;
+        return tokenA_amount - fee;
+    }
+}
