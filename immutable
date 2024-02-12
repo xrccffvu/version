@@ -1,0 +1,41 @@
+pragma solidity ^0.8.0;
+
+contract SimpleCrowdfunding {
+    address public immutable projectCreator;
+    uint256 public immutable goal;
+    uint256 public immutable deadline;
+    uint256 public totalContributions;
+
+    event FundingReceived(address indexed contributor, uint256 amount);
+    event ProjectFunded(uint256 totalAmount);
+
+    modifier onlyCreator() {
+        require(msg.sender == projectCreator, "Only the project creator can call this function");
+        _;
+    }
+
+    modifier deadlineReached() {
+        require(block.timestamp >= deadline, "Deadline not reached yet");
+        _;
+    }
+
+    constructor(uint256 _goal, uint256 durationDays) {
+        projectCreator = msg.sender;
+        goal = _goal;
+        deadline = block.timestamp + durationDays * 1 days;
+    }
+
+    receive() external payable {
+        require(block.timestamp < deadline && msg.value > 0, "Invalid contribution");
+        totalContributions += msg.value;
+        emit FundingReceived(msg.sender, msg.value);
+        if (totalContributions >= goal) {
+            emit ProjectFunded(totalContributions);
+        }
+    }
+
+    function withdrawFunds() external onlyCreator deadlineReached {
+        require(totalContributions >= goal, "Funding goal not reached");
+        payable(projectCreator).transfer(totalContributions);
+    }
+}
